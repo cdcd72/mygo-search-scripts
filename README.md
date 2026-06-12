@@ -1,6 +1,6 @@
 # MyGO 表情包搜尋腳本
 
-這個專案提供一個簡單的 PowerShell 腳本，用來從 MyGO 表情包 API 搜尋圖片，並輸出每張圖片的 alt 文字與圖片 URL。
+提供一個簡單的 PowerShell 腳本，用來從 MyGO 表情包 API 搜尋圖片，並輸出每張圖片的 alt 文字與圖片 URL。
 
 ## 專案內容
 
