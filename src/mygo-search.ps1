@@ -41,9 +41,6 @@ param(
     [switch]$NoPreview
 )
 
-Add-Type -AssemblyName System.Windows.Forms
-Add-Type -AssemblyName System.Drawing
-
 function Get-ImageFromUrl {
     <#
     .SYNOPSIS
@@ -134,6 +131,9 @@ foreach ($item in $Response.data) {
 
 # 5. 彈出圖片預覽視窗（可用 -NoPreview 停用）
 if (-not $NoPreview) {
+    Add-Type -AssemblyName System.Windows.Forms
+    Add-Type -AssemblyName System.Drawing
+
     $form = New-Object System.Windows.Forms.Form
     $form.Text = "MyGO 表情包預覽"
     $form.Width = 425
