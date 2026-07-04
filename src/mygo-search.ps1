@@ -11,12 +11,16 @@
     是否啟用隨機取圖。
 .PARAMETER Count
     隨機取圖的數量（預設為 1）。
+.PARAMETER NoPreview
+    是否停用圖片預覽視窗（預設會跳出視窗，加此參數則只輸出終端機文字）。
 .EXAMPLE
     .\mygo-search.ps1 "春日影"
 .EXAMPLE
     .\mygo-search.ps1 "春日影" -Fuzzy
 .EXAMPLE
     .\mygo-search.ps1 -Random -Count 3
+.EXAMPLE
+    .\mygo-search.ps1 "春日影" -NoPreview
 #>
 
 [CmdletBinding()]
@@ -31,8 +35,40 @@ param(
     [switch]$Random,
 
     [Parameter(Mandatory=$false)]
-    [int]$Count = 1
+    [int]$Count = 1,
+
+    [Parameter(Mandatory=$false)]
+    [switch]$NoPreview
 )
+
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+
+function Get-ImageFromUrl {
+    <#
+    .SYNOPSIS
+        下載圖片並轉成 System.Drawing.Image 物件與原始位元組。
+    #>
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$Url
+    )
+
+    try {
+        $webClient = New-Object System.Net.WebClient
+        $bytes = $webClient.DownloadData($Url)
+        $ms = New-Object System.IO.MemoryStream($bytes, 0, $bytes.Length)
+        $image = [System.Drawing.Image]::FromStream($ms)
+        return [PSCustomObject]@{
+            Image = $image
+            Bytes = $bytes
+        }
+    }
+    catch {
+        Write-Error "下載圖片失敗（$Url）：$($_.Exception.Message)"
+        return $null
+    }
+}
 
 # 1. 參數驗證
 if ($Random -and (-not [string]::IsNullOrWhiteSpace($Query))) {
@@ -94,4 +130,90 @@ foreach ($item in $Response.data) {
     # 圖片 URL
     Write-Host "[$($item.alt)]"
     Write-Host "$($item.url)"
+}
+
+# 5. 彈出圖片預覽視窗（可用 -NoPreview 停用）
+if (-not $NoPreview) {
+    $form = New-Object System.Windows.Forms.Form
+    $form.Text = "MyGO 表情包預覽"
+    $form.Width = 425
+    $form.Height = 720
+    $form.StartPosition = "CenterScreen"
+
+    $flowPanel = New-Object System.Windows.Forms.FlowLayoutPanel
+    $flowPanel.Dock = "Fill"
+    $flowPanel.AutoScroll = $true
+    $flowPanel.FlowDirection = "TopDown"
+    $flowPanel.WrapContents = $false
+    $form.Controls.Add($flowPanel)
+
+    foreach ($item in $Response.data) {
+        $result = Get-ImageFromUrl -Url $item.url
+        if ($null -eq $result) {
+            continue
+        }
+
+        $itemPanel = New-Object System.Windows.Forms.Panel
+        $itemPanel.Width = 380
+        $itemPanel.Height = 285
+        $itemPanel.Margin = New-Object System.Windows.Forms.Padding(5)
+
+        $pictureBox = New-Object System.Windows.Forms.PictureBox
+        $pictureBox.Width = 370
+        $pictureBox.Height = 208
+        $pictureBox.Top = 0
+        $pictureBox.Left = 5
+        $pictureBox.SizeMode = "Zoom"
+        $pictureBox.Image = $result.Image
+        $itemPanel.Controls.Add($pictureBox)
+
+        $label = New-Object System.Windows.Forms.Label
+        $label.Text = $item.alt
+        $label.Top = 210
+        $label.Left = 5
+        $label.Width = 370
+        $label.Height = 30
+        $label.TextAlign = "MiddleCenter"
+        $itemPanel.Controls.Add($label)
+
+        $downloadButton = New-Object System.Windows.Forms.Button
+        $downloadButton.Text = "下載"
+        $downloadButton.Top = 245
+        $downloadButton.Left = 5
+        $downloadButton.Width = 370
+        $itemPanel.Tag = $result.Bytes
+        $downloadButton.Tag = @{ Bytes = $result.Bytes; Alt = $item.alt; Url = $item.url }
+
+        $downloadButton.Add_Click({
+            param($sender, $eventArgs)
+
+            $tagData = $sender.Tag
+            $extension = [System.IO.Path]::GetExtension($tagData.Url)
+            if ([string]::IsNullOrWhiteSpace($extension)) {
+                $extension = ".jpg"
+            }
+
+            $invalidChars = [System.IO.Path]::GetInvalidFileNameChars()
+            $safeName = ($tagData.Alt.ToCharArray() | ForEach-Object {
+                if ($invalidChars -contains $_) { "_" } else { $_ }
+            }) -join ""
+            if ([string]::IsNullOrWhiteSpace($safeName)) {
+                $safeName = "mygo表情包"
+            }
+
+            $saveDialog = New-Object System.Windows.Forms.SaveFileDialog
+            $saveDialog.FileName = "$safeName$extension"
+            $saveDialog.Filter = "圖片檔案|*$extension|所有檔案|*.*"
+
+            if ($saveDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+                [System.IO.File]::WriteAllBytes($saveDialog.FileName, $tagData.Bytes)
+            }
+        })
+        $itemPanel.Controls.Add($downloadButton)
+
+        $flowPanel.Controls.Add($itemPanel)
+    }
+
+    $form.ShowDialog() | Out-Null
+    $form.Dispose()
 }
