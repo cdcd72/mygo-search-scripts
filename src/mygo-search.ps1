@@ -136,8 +136,8 @@ if (-not $NoPreview) {
 
     $form = New-Object System.Windows.Forms.Form
     $form.Text = "MyGO 表情包預覽"
-    $form.Width = 425
-    $form.Height = 720
+    $form.Width = ($Count -gt 2) ? 425 : 410
+    $form.Height = ($Count -gt 2) ? 720 : 635
     $form.StartPosition = "CenterScreen"
 
     $flowPanel = New-Object System.Windows.Forms.FlowLayoutPanel
@@ -162,7 +162,7 @@ if (-not $NoPreview) {
         $pictureBox.Width = 370
         $pictureBox.Height = 208
         $pictureBox.Top = 0
-        $pictureBox.Left = 5
+        $pictureBox.Left = 8
         $pictureBox.SizeMode = "Zoom"
         $pictureBox.Image = $result.Image
         $itemPanel.Controls.Add($pictureBox)
@@ -170,7 +170,7 @@ if (-not $NoPreview) {
         $label = New-Object System.Windows.Forms.Label
         $label.Text = $item.alt
         $label.Top = 210
-        $label.Left = 5
+        $label.Left = 8
         $label.Width = 370
         $label.Height = 30
         $label.TextAlign = "MiddleCenter"
@@ -179,7 +179,7 @@ if (-not $NoPreview) {
         $downloadButton = New-Object System.Windows.Forms.Button
         $downloadButton.Text = "下載"
         $downloadButton.Top = 245
-        $downloadButton.Left = 5
+        $downloadButton.Left = 8
         $downloadButton.Width = 370
         $itemPanel.Tag = $result.Bytes
         $downloadButton.Tag = @{ Bytes = $result.Bytes; Alt = $item.alt; Url = $item.url }
